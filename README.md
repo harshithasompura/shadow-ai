@@ -75,9 +75,17 @@ Detection
 ─────────
 id
 assetId
-confidence
-status
+confidence     (0–100)
+status         (AI_LIKELY | POSSIBLE_AI | NOT_AI)
 scannedAt
+
+Detection.status is assigned by the Scoring layer from the confidence score:
+
+- confidence >= 70  → AI_LIKELY
+- confidence >= 40  → POSSIBLE_AI
+- confidence <  40  → NOT_AI
+
+(Before scoring, a freshly detected asset carries a PENDING status.)
 
 Evidence
 ────────
