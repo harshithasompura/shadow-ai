@@ -1,8 +1,8 @@
-// Confidence Scoring — evaluates Evidence, calculates a confidence score, and
+// Confidence Scoring - evaluates Evidence, calculates a confidence score, and
 // finalizes the Detection status. (README > Responsibility Diagram: Scoring)
 //
 // Boundaries (README > Architecture Principles):
-//   - Only evaluates Evidence — never inspects the Asset.
+//   - Only evaluates Evidence - never inspects the Asset.
 //   - Never generates Evidence or performs heuristic detection.
 //   - Never calls Discovery/Normalizer, never persists, never exposes routes.
 // Pure function of (Detection, Evidence[]): same input always yields the same
@@ -14,7 +14,7 @@ import type { Detection, Evidence } from "@/lib/types";
 export type ScoredStatus = "AI_LIKELY" | "POSSIBLE_AI" | "NOT_AI";
 
 // Evidence.weight is a 0–1 indicator strength set by the Detection layer.
-// Confidence is simply the summed weights scaled to a 0–100 percentage — an
+// Confidence is simply the summed weights scaled to a 0–100 percentage - an
 // additive model that is trivial to explain: each indicator adds its weight.
 const SCALE = 100;
 

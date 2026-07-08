@@ -1,4 +1,4 @@
-// Resource Normalizer — turns raw provider-shaped resources into Normalized Assets.
+// Resource Normalizer - turns raw provider-shaped resources into Normalized Assets.
 // No AI logic, no persistence; shape only. (README)
 import type { Asset, RawResource } from "@/lib/types";
 

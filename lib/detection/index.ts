@@ -1,10 +1,10 @@
-// Detection Engine — inspects Asset metadata, identifies AI indicators, and
+// Detection Engine - inspects Asset metadata, identifies AI indicators, and
 // emits Evidence. Static heuristics only. (README)
 //
 // Boundaries (README > Architecture Principles):
 //   - Never communicates with GCP.
-//   - Never calculates confidence or assigns a score — the Scoring layer does.
-//   - Never persists — the Persistence layer does.
+//   - Never calculates confidence or assigns a score - the Scoring layer does.
+//   - Never persists - the Persistence layer does.
 // Pure function of the Asset: same input always yields the same Evidence.
 import type { Asset, Detection, Evidence } from "@/lib/types";
 
@@ -12,14 +12,14 @@ import type { Asset, Detection, Evidence } from "@/lib/types";
 // string in the domain model; this union just keeps our emitters honest.
 type IndicatorType = "ENV_VAR" | "LABEL" | "FRAMEWORK" | "MODEL";
 
-// `weight` is the fixed strength of an indicator — a property of the heuristic,
+// `weight` is the fixed strength of an indicator - a property of the heuristic,
 // not a confidence score. The Scoring layer aggregates weights into confidence;
 // tuning these numbers is a Detection-layer concern, computing with them is not.
 const WEIGHT: Record<IndicatorType, number> = {
   ENV_VAR: 0.9, // a provider API key is a strong signal
   MODEL: 0.8, // a named LLM or inference runtime being served is a strong signal
   FRAMEWORK: 0.7, // an agent framework in the runtime is a strong signal
-  LABEL: 0.4, // a self-declared label is weak — anyone can set it
+  LABEL: 0.4, // a self-declared label is weak - anyone can set it
 };
 
 // Env var *names* that reference an AI provider, SDK, or vector store. Matches
@@ -35,7 +35,7 @@ const FRAMEWORKS = ["LangChain", "LangGraph", "CrewAI", "AutoGen", "LlamaIndex",
 
 // Named LLM families and dedicated inference/serving runtimes referenced in a
 // runtime image or label value. Classic ML (e.g. xgboost) is deliberately absent
-// — this indicator is for generative/LLM workloads, not all ML.
+// - this indicator is for generative/LLM workloads, not all ML.
 const MODEL =
   /\b(gpt-?\d|gemini|claude|llama|mistral|mixtral|falcon|command-r|text-embedding|embedding|vllm|tgi|triton|sglang|ollama|whisper)\b/i;
 
@@ -53,7 +53,7 @@ function isTruthyLabel(value: string): boolean {
 }
 
 // Inspect one Asset and produce its Detection plus the Evidence behind it.
-// Evidence is empty when no indicators fire — the Asset is still analyzed.
+// Evidence is empty when no indicators fire - the Asset is still analyzed.
 export function detect(asset: Asset): { detection: Detection; evidence: Evidence[] } {
   const detectionId = `detection:${asset.id}`;
   const evidence: Evidence[] = [];

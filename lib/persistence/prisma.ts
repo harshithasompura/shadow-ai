@@ -1,4 +1,4 @@
-// Prisma client singleton (infra glue — not business logic).
+// Prisma client singleton (infra glue - not business logic).
 // Avoids exhausting connections during dev hot-reload.
 import { PrismaClient } from "@prisma/client";
 

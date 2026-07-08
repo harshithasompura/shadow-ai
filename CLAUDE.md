@@ -1,8 +1,9 @@
 # Claude Code Instructions
 
-Read @README.md completely before doing anything else.
+Read @ARCHITECTURE.md completely before doing anything else. (@README.md is the
+project front-door: setup, screenshots, API, and scoring overview.)
 
-Treat it as the architectural source of truth for this project.
+Treat @ARCHITECTURE.md as the architectural source of truth for this project.
 
 Before writing any code:
 

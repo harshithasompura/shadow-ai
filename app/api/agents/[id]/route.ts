@@ -1,4 +1,4 @@
-// REST API — exposes a single Asset with its Detection and all Evidence. (README)
+// REST API - exposes a single Asset with its Detection and all Evidence. (README)
 import { NextResponse } from "next/server";
 import { getAgent } from "@/lib/persistence";
 

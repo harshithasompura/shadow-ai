@@ -1,6 +1,6 @@
 // Representative GKE fixture data. (README: not live-discovered)
 // Provider-shaped (GKE `Cluster`), trimmed to what we collect. A cluster has no
-// container image/env of its own, so runtime is absent — the Normalizer leaves it null.
+// container image/env of its own, so runtime is absent - the Normalizer leaves it null.
 import type { RawResource } from "@/lib/types";
 
 interface GkeCluster {

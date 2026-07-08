@@ -1,4 +1,4 @@
-// Persistence layer — stores results and retrieves inventory. No business logic. (README)
+// Persistence layer - stores results and retrieves inventory. No business logic. (README)
 // Domain model mirrors README > Domain Model exactly.
 
 generator client {

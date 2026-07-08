@@ -1,4 +1,4 @@
-// REST API — exposes persisted asset inventory. Orchestrates, no business logic. (README)
+// REST API - exposes persisted asset inventory. Orchestrates, no business logic. (README)
 import { NextResponse } from "next/server";
 import { getAssets } from "@/lib/persistence";
 

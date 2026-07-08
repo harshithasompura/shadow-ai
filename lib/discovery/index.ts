@@ -1,4 +1,4 @@
-// Discovery layer — collects cloud resources and hands normalized Assets to the
+// Discovery layer - collects cloud resources and hands normalized Assets to the
 // next stage. No AI logic, no persistence. (README)
 import type { Asset, RawResource } from "@/lib/types";
 import { normalize } from "@/lib/normalizer";

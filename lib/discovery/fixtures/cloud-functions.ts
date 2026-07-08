@@ -34,6 +34,18 @@ const FIXTURES: CloudFunction[] = [
     },
     labels: { team: "media", env: "prod" },
   },
+  {
+    // Self-declares via an ai=true label but exposes no API key, model, or
+    // framework - the sole weak signal lands it in the POSSIBLE_AI band, showing
+    // the score is graded rather than binary.
+    name: "projects/shadow-ai/locations/us-central1/functions/support-router",
+    buildConfig: { runtime: "nodejs20" },
+    serviceConfig: {
+      serviceAccountEmail: "support-router@shadow-ai.iam.gserviceaccount.com",
+      environmentVariables: { QUEUE_URL: "https://tasks.example/support" },
+    },
+    labels: { team: "cx", env: "prod", ai: "true" },
+  },
 ];
 
 export function discoverCloudFunctions(): RawResource[] {

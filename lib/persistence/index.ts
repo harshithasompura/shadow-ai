@@ -1,4 +1,4 @@
-// Persistence layer — stores pipeline results, retrieves inventory. No business
+// Persistence layer - stores pipeline results, retrieves inventory. No business
 // logic; only Prisma queries. (README > Responsibility Diagram: Persistence)
 //
 // Boundaries (README > Architecture Principles):
@@ -89,13 +89,14 @@ export async function saveResults(assets: Asset[], results: ScoredResult[]): Pro
   await prisma.$transaction(operations);
 }
 
-// Every persisted Asset.
+// Every persisted Asset with its Detection, so the inventory can show each
+// asset's band - including NOT_AI, which the agents list intentionally omits.
 export function getAssets() {
-  return prisma.asset.findMany();
+  return prisma.asset.findMany({ include: { detections: true } });
 }
 
 // Only Assets whose Detection represents an AI workload (anything but NOT_AI),
-// each with its Detection summary. One Detection per Asset — history is replaced.
+// each with its Detection summary. One Detection per Asset - history is replaced.
 export function getAgents() {
   return prisma.asset.findMany({
     where: { detections: { some: { status: { in: ["AI_LIKELY", "POSSIBLE_AI"] } } } },

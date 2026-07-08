@@ -1,4 +1,4 @@
-// Cloud Run discovery — the only live GCP API source. (README locked decision)
+// Cloud Run discovery - the only live GCP API source. (README locked decision)
 // Collects raw Cloud Run services. No normalization, no AI logic.
 import type { RawResource } from "@/lib/types";
 
@@ -13,7 +13,7 @@ interface CloudRunService {
 }
 
 // Live discovery. Cloud Run is the only source that hits a real GCP API.
-// Credentials come from Application Default Credentials — set
+// Credentials come from Application Default Credentials - set
 // GOOGLE_APPLICATION_CREDENTIALS to a service account key path.
 export async function discoverCloudRun(): Promise<RawResource[]> {
   const project = process.env.GOOGLE_CLOUD_PROJECT;

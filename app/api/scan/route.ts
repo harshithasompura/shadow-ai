@@ -1,4 +1,4 @@
-// REST API — triggers a discovery→detection→scoring→persist run. Orchestrates only. (README)
+// REST API - triggers a discovery→detection→scoring→persist run. Orchestrates only. (README)
 import { NextResponse } from "next/server";
 import { discoverAssets } from "@/lib/discovery";
 import { detectAll } from "@/lib/detection";

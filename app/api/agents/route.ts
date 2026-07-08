@@ -1,4 +1,4 @@
-// REST API — exposes detected AI workloads with confidence and status. (README)
+// REST API - exposes detected AI workloads with confidence and status. (README)
 import { NextResponse } from "next/server";
 import { getAgents } from "@/lib/persistence";
 
