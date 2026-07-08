@@ -11,6 +11,7 @@
     "db:push": "prisma db push"
   },
   "dependencies": {
+    "@google-cloud/run": "^3.3.0",
     "@prisma/client": "^6.19.3",
     "next": "16.2.10",
     "react": "19.2.4",

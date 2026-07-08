@@ -12,47 +12,40 @@ interface CloudRunService {
   };
 }
 
-// ponytail: stub stands in for the SDK until creds are wired. The live path is
-// one call — drop it in at the marked seam and delete STUB_SERVICES.
-const STUB_SERVICES: CloudRunService[] = [
-  {
-    name: "projects/shadow-ai/locations/us-central1/services/support-agent",
-    serviceAccount: "support-agent@shadow-ai.iam.gserviceaccount.com",
-    labels: { team: "cx", env: "prod" },
-    template: {
-      containers: [
-        {
-          image: "us-docker.pkg.dev/shadow-ai/agents/support-agent:latest",
-          env: [
-            { name: "OPENAI_API_KEY", value: "sk-***" },
-            { name: "MODEL", value: "gpt-4o" },
-          ],
-        },
-      ],
-    },
-  },
-  {
-    name: "projects/shadow-ai/locations/us-central1/services/billing-web",
-    serviceAccount: "billing-web@shadow-ai.iam.gserviceaccount.com",
-    labels: { team: "payments", env: "prod" },
-    template: {
-      containers: [{ image: "us-docker.pkg.dev/shadow-ai/web/billing:1.4.2", env: [] }],
-    },
-  },
-];
-
+// Live discovery. Cloud Run is the only source that hits a real GCP API.
+// Credentials come from Application Default Credentials — set
+// GOOGLE_APPLICATION_CREDENTIALS to a service account key path.
 export async function discoverCloudRun(): Promise<RawResource[]> {
   const project = process.env.GOOGLE_CLOUD_PROJECT;
+  if (!project) return []; // no project configured → nothing live to discover
 
-  if (project) {
-    // TODO(live): wire the official SDK once creds are configured:
-    //   const { ServicesClient } = await import("@google-cloud/run");
-    //   const client = new ServicesClient();
-    //   const [live] = await client.listServices({ parent: `projects/${project}/locations/-` });
-    //   return live.map((data) => ({ type: "CLOUD_RUN", source: "REAL", data }));
-    // Only data actually returned by GCP is REAL.
-  }
+  const { ServicesClient } = await import("@google-cloud/run");
+  const client = new ServicesClient();
 
-  // No live query happened — this is stub data, so its provenance is FIXTURE.
-  return STUB_SERVICES.map((data) => ({ type: "CLOUD_RUN", source: "FIXTURE", data }));
+  // `locations/-` lists services across every region in one call.
+  // ponytail: first page only (~100 services); switch to listServicesAsync if a
+  // project outgrows it.
+  const [services] = await client.listServices({
+    parent: `projects/${project}/locations/-`,
+  });
+
+  // Reshape the SDK's v2 Service into the shape the Normalizer reads. Only data
+  // GCP actually returned is REAL provenance.
+  return services.map((s): RawResource => ({
+    type: "CLOUD_RUN",
+    source: "REAL",
+    data: {
+      name: s.name ?? "",
+      serviceAccount: s.template?.serviceAccount ?? undefined,
+      labels: s.labels ?? undefined,
+      template: {
+        containers: s.template?.containers?.map((c) => ({
+          image: c.image ?? undefined,
+          env: c.env
+            ?.filter((e) => e.value != null)
+            .map((e) => ({ name: e.name ?? "", value: e.value ?? "" })),
+        })),
+      },
+    } satisfies CloudRunService,
+  }));
 }
