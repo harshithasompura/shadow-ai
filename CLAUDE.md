@@ -28,3 +28,25 @@ Wait for my approval before creating files or writing implementation code.
 If you think a better architecture exists, do not implement it.
 
 Instead, list it under "Alternative Approaches" at the end of your response and continue following @README.md.
+
+## Milestone Reviews
+
+Produce a small review after every milestone, before moving on. Use this format:
+
+```
+Milestone Summary
+
+Files created:
+...
+
+Responsibilities added:
+...
+
+Architecture boundaries maintained:
+...
+
+Known limitations:
+...
+```
+
+This makes the work easy to review instead of diving straight into code.

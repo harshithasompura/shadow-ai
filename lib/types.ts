@@ -4,6 +4,14 @@
 export type AssetType = "CLOUD_RUN" | "CLOUD_FUNCTION" | "GKE" | "VERTEX_AI";
 export type Source = "REAL" | "FIXTURE";
 
+// Raw cloud resource as collected by the Discovery layer, before normalization.
+// `data` holds the provider-native payload; the Normalizer interprets it per type.
+export interface RawResource {
+  type: AssetType;
+  source: Source;
+  data: unknown; // provider-native payload; the Normalizer casts it per type
+}
+
 export interface Asset {
   id: string;
   name: string;
