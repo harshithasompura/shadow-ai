@@ -1,0 +1,63 @@
+// Persistence layer — stores results and retrieves inventory. No business logic. (README)
+// Domain model mirrors README > Domain Model exactly.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  // Neon pooled connection (pgbouncer) for the app.
+  url       = env("DATABASE_URL")
+  // Neon direct connection for migrations.
+  directUrl = env("DIRECT_URL")
+}
+
+enum AssetType {
+  CLOUD_RUN
+  CLOUD_FUNCTION
+  GKE
+  VERTEX_AI
+}
+
+enum Source {
+  REAL
+  FIXTURE
+}
+
+model Asset {
+  id                   String      @id @default(cuid())
+  name                 String
+  type                 AssetType
+  region               String
+  runtime              String?
+  serviceAccount       String?
+  labels               Json?
+  environmentVariables Json?
+  source               Source
+  lastSeen             DateTime
+
+  detections Detection[]
+}
+
+model Detection {
+  id         String   @id @default(cuid())
+  assetId    String
+  confidence Float
+  status     String
+  scannedAt  DateTime @default(now())
+
+  asset    Asset      @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  evidence Evidence[]
+}
+
+model Evidence {
+  id            String @id @default(cuid())
+  detectionId   String
+  indicatorType String
+  value         String
+  message       String
+  weight        Float
+
+  detection Detection @relation(fields: [detectionId], references: [id], onDelete: Cascade)
+}
