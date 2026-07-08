@@ -10,21 +10,22 @@ import type { Asset, Detection, Evidence } from "@/lib/types";
 
 // Indicator families this layer recognizes. Evidence.indicatorType is a plain
 // string in the domain model; this union just keeps our emitters honest.
-type IndicatorType = "ENV_VAR" | "LABEL" | "FRAMEWORK";
+type IndicatorType = "ENV_VAR" | "LABEL" | "FRAMEWORK" | "MODEL";
 
 // `weight` is the fixed strength of an indicator — a property of the heuristic,
 // not a confidence score. The Scoring layer aggregates weights into confidence;
 // tuning these numbers is a Detection-layer concern, computing with them is not.
 const WEIGHT: Record<IndicatorType, number> = {
   ENV_VAR: 0.9, // a provider API key is a strong signal
+  MODEL: 0.8, // a named LLM or inference runtime being served is a strong signal
   FRAMEWORK: 0.7, // an agent framework in the runtime is a strong signal
   LABEL: 0.4, // a self-declared label is weak — anyone can set it
 };
 
-// Env var *names* that reference an AI provider or SDK. Matches the key, never
-// the value (values are secrets and shouldn't be inspected or echoed).
+// Env var *names* that reference an AI provider, SDK, or vector store. Matches
+// the key, never the value (values are secrets and shouldn't be inspected).
 const AI_ENV_KEY =
-  /OPENAI|ANTHROPIC|CLAUDE|GEMINI|GOOGLE_API_KEY|VERTEX|COHERE|MISTRAL|GROQ|REPLICATE|TOGETHER|PERPLEXITY|HUGGINGFACE|HF_TOKEN|LANGCHAIN|LANGSMITH|LLM_/i;
+  /OPENAI|ANTHROPIC|CLAUDE|GEMINI|GOOGLE_API_KEY|VERTEX|COHERE|MISTRAL|GROQ|REPLICATE|TOGETHER|PERPLEXITY|HUGGINGFACE|HF_TOKEN|LANGCHAIN|LANGSMITH|LLM_|EMBEDDING|VECTOR_DB|PINECONE|WEAVIATE|QDRANT|CHROMA|MILVUS/i;
 
 // Label keys that self-declare an AI workload, e.g. ai=true, agent=true.
 const AI_LABEL_KEY = /^(ai|agent|llm|ml|genai)$/i;
@@ -32,9 +33,19 @@ const AI_LABEL_KEY = /^(ai|agent|llm|ml|genai)$/i;
 // Agent/LLM frameworks referenced by name in a runtime image or metadata value.
 const FRAMEWORKS = ["LangChain", "LangGraph", "CrewAI", "AutoGen", "LlamaIndex", "Haystack"];
 
+// Named LLM families and dedicated inference/serving runtimes referenced in a
+// runtime image or label value. Classic ML (e.g. xgboost) is deliberately absent
+// — this indicator is for generative/LLM workloads, not all ML.
+const MODEL =
+  /\b(gpt-?\d|gemini|claude|llama|mistral|mixtral|falcon|command-r|text-embedding|embedding|vllm|tgi|triton|sglang|ollama|whisper)\b/i;
+
 function matchFramework(text: string): string | null {
   const lower = text.toLowerCase();
   return FRAMEWORKS.find((f) => lower.includes(f.toLowerCase())) ?? null;
+}
+
+function matchModel(text: string): string | null {
+  return text.match(MODEL)?.[0] ?? null;
 }
 
 function isTruthyLabel(value: string): boolean {
@@ -73,13 +84,22 @@ export function detect(asset: Asset): { detection: Detection; evidence: Evidence
     if (labelFramework) {
       add("FRAMEWORK", `${key}=${value}`, `Label references the ${labelFramework} framework.`);
     }
+    const labelModel = matchModel(value);
+    if (labelModel) {
+      add("MODEL", `${key}=${value}`, `Label references the "${labelModel}" model or inference runtime.`);
+    }
   }
 
-  // 3. Framework references in the runtime / container image.
+  // 3. Framework and served-model references in the runtime / container image.
+  // For Vertex AI the runtime is the deployed model name (see normalizer).
   if (asset.runtime) {
     const runtimeFramework = matchFramework(asset.runtime);
     if (runtimeFramework) {
       add("FRAMEWORK", asset.runtime, `Runtime "${asset.runtime}" references the ${runtimeFramework} framework.`);
+    }
+    const runtimeModel = matchModel(asset.runtime);
+    if (runtimeModel) {
+      add("MODEL", asset.runtime, `Runtime "${asset.runtime}" references the "${runtimeModel}" model or inference runtime.`);
     }
   }
 
