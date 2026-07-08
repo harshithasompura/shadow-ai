@@ -1,7 +1,8 @@
 // REST API — exposes persisted asset inventory. Orchestrates, no business logic. (README)
 import { NextResponse } from "next/server";
+import { getAssets } from "@/lib/persistence";
 
-// TODO: return inventory from the persistence layer in the API milestone.
-export function GET() {
-  return NextResponse.json({ error: "Not implemented" }, { status: 501 });
+// Every persisted Asset, straight from the persistence layer.
+export async function GET() {
+  return NextResponse.json(await getAssets());
 }
