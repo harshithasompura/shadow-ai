@@ -18,11 +18,15 @@ with an **explainable confidence score** that shows *why* each one was flagged.
 > Architecture, design decisions, tradeoffs, and how this scales to thousands of
 > projects live in **[`ARCHITECTURE.md`](ARCHITECTURE.md)**.
 
-**Bonus implemented — Risk scoring.** A second, orthogonal axis: alongside "is
-this AI", each asset gets an additive risk score (external-LLM egress, public
-endpoint, broad service account, logging) with every factor labelled *observed*
-or *heuristic*. Rule-based, so the other bonuses slot in as new rules. See
-[`ARCHITECTURE.md` §7](ARCHITECTURE.md#7-risk-scoring-architecture).
+**Bonuses implemented.**
+- **Risk scoring** - a second, orthogonal axis: alongside "is this AI", each asset
+  gets an additive risk score (external-LLM egress, public endpoint, broad service
+  account, logging) with every factor labelled *observed* or *heuristic*.
+  Rule-based, so the other bonuses slot in as new rules.
+  See [`ARCHITECTURE.md` §7](ARCHITECTURE.md#7-risk-scoring-architecture).
+- **Relationship view** - each agent's detail page shows its dependency chain
+  (service account, external LLM, vector store, served model) so you can read the
+  blast radius. Derived from collected metadata; no extra discovery.
 
 ---
 

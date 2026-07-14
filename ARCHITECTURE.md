@@ -306,8 +306,11 @@ rules or new evidence sources without an architectural change:
 - **Cloud Logging integration** - a runtime rule: observed Vertex
   `GenerateContent` calls in audit logs become an `OBSERVED` factor, raising both
   AI recall and risk.
-- **Relationship graph** - a shared-secret or external-egress edge becomes a
-  derived factor once resource relationships are collected.
+- **Relationship graph** - a lightweight version ships today: the detail page
+  derives each asset's dependency chain (identity, external LLM, vector store,
+  served model) from collected metadata (`lib/graph`). A full graph would collect
+  real edges (IAM bindings, Secret Manager references) so a shared secret or an
+  external-egress edge could also feed the risk score.
 - **Container image analysis** - AI libraries found in an image add `OBSERVED`
   detection evidence, which the external-LLM rule already keys off.
 - **Incremental scanning** - a `Scan` aggregate with per-resource etags lets both

@@ -5,6 +5,7 @@
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import type { Asset, Detection, Evidence, RiskFactor } from "@/lib/types";
+import { relationships } from "@/lib/graph";
 import { ConfidenceMeter, RiskPill, SourceTag, StatusPill, TypeLabel } from "../../ui";
 
 // Detail endpoint nests Evidence and RiskFactors under each Detection.
@@ -133,6 +134,9 @@ export default function AgentDetail({ params }: { params: Promise<{ id: string }
         </section>
       )}
 
+      {/* Dependency view - the asset's blast radius, derived from metadata. */}
+      <Dependencies agent={agent} />
+
       {/* Asset facts. */}
       <section className="mt-8">
         <p className="eyebrow">Asset</p>
@@ -161,6 +165,86 @@ export default function AgentDetail({ params }: { params: Promise<{ id: string }
         </dl>
       </section>
     </main>
+  );
+}
+
+// Kind -> node accent. External egress (an LLM) reads as the one to notice.
+const EDGE_COLOR: Record<string, string> = {
+  identity: "var(--faint)",
+  llm: "var(--likely)",
+  vertex: "var(--possible)",
+  vectorstore: "var(--possible)",
+  model: "var(--not)",
+};
+
+function truncate(s: string, n = 30) {
+  return s.length > n ? s.slice(0, n - 1) + "…" : s;
+}
+
+// Node-link diagram: the asset hub on the left, its dependencies fanned to the
+// right, one edge per relationship. Inline SVG - no graph library.
+function Dependencies({ agent }: { agent: Agent }) {
+  const edges = relationships(agent);
+  if (edges.length === 0) return null;
+
+  const rowH = 60;
+  const padY = 16;
+  const H = edges.length * rowH + padY * 2;
+  const W = 660;
+  const hubX = 12;
+  const hubW = 210;
+  const hubCx = hubX + hubW;
+  const hubCy = H / 2;
+  const nodeX = 392;
+  const nodeW = 256;
+  const cy = (i: number) => padY + i * rowH + rowH / 2;
+
+  return (
+    <section className="mt-8">
+      <p className="eyebrow">Dependencies · blast radius</p>
+      <div className="card mt-3 overflow-x-auto p-4">
+        <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ maxWidth: W, height: "auto" }} role="img"
+          aria-label={`${agent.name} dependency graph`}>
+          {/* edges */}
+          {edges.map((e, i) => {
+            const y = cy(i);
+            const mx = (hubCx + nodeX) / 2;
+            return (
+              <path key={"p" + e.kind + e.target}
+                d={`M ${hubCx} ${hubCy} C ${mx} ${hubCy}, ${mx} ${y}, ${nodeX} ${y}`}
+                fill="none" stroke={EDGE_COLOR[e.kind]} strokeWidth={1.5} opacity={0.55} />
+            );
+          })}
+
+          {/* hub node */}
+          <rect x={hubX} y={hubCy - 26} width={hubW} height={52} rx={12}
+            fill="var(--surface)" stroke="var(--text)" strokeWidth={1.5} />
+          <text x={hubX + 16} y={hubCy - 6} fontSize={10} fill="var(--faint)"
+            fontFamily="var(--font-geist-mono), monospace">{agent.type}</text>
+          <text x={hubX + 16} y={hubCy + 13} fontSize={14} fill="var(--text)" fontWeight={600}>
+            {truncate(agent.name, 22)}
+          </text>
+
+          {/* dependency nodes */}
+          {edges.map((e, i) => {
+            const y = cy(i);
+            const c = EDGE_COLOR[e.kind];
+            return (
+              <g key={"n" + e.kind + e.target}>
+                <circle cx={nodeX} cy={y} r={3} fill={c} />
+                <rect x={nodeX + 12} y={y - 20} width={nodeW} height={40} rx={10}
+                  fill="var(--surface)" stroke={c} strokeWidth={1.25} />
+                <text x={nodeX + 26} y={y - 4} fontSize={9.5} fill={c}
+                  fontFamily="var(--font-geist-mono), monospace"
+                  letterSpacing="0.06em">{e.relation.toUpperCase()}</text>
+                <text x={nodeX + 26} y={y + 12} fontSize={13} fill="var(--text)"
+                  fontFamily="var(--font-geist-mono), monospace">{truncate(e.target)}</text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    </section>
   );
 }
 
