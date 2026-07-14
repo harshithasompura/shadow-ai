@@ -5,11 +5,15 @@
 //   - Never discovers, normalizes, detects, or scores.
 //   - Never imports GCP SDKs or Next.js request/response objects.
 import { Prisma } from "@prisma/client";
-import type { Asset, Detection, Evidence } from "@/lib/types";
+import type { Asset, Detection, Evidence, RiskFactor } from "@/lib/types";
 import { prisma } from "./prisma";
 
-// One scored asset: the Scoring layer's output for a single Asset.
-type ScoredResult = { detection: Detection; evidence: Evidence[] };
+// One assessed asset: the Scoring and Risk layers' output for a single Asset.
+type ScoredResult = {
+  detection: Detection;
+  evidence: Evidence[];
+  risk: { score: number; level: string; factors: RiskFactor[] };
+};
 
 // Nullable Json columns store DB NULL when the metadata is absent, so an update
 // clears a value that a prior scan had set. (Plain null isn't valid for Json.)
@@ -26,6 +30,8 @@ function assetData(a: Asset) {
     serviceAccount: a.serviceAccount ?? null,
     labels: json(a.labels),
     environmentVariables: json(a.environmentVariables),
+    publicAccess: a.publicAccess ?? null,
+    loggingEnabled: a.loggingEnabled ?? null,
     source: a.source,
     lastSeen: a.lastSeen,
   };
@@ -56,7 +62,7 @@ export async function saveResults(assets: Asset[], results: ScoredResult[]): Pro
   for (const asset of assets) {
     const result = byAssetId.get(asset.id);
     if (!result) continue; // detectAll produces a Detection per Asset; defensive only.
-    const { detection, evidence } = result;
+    const { detection, evidence, risk } = result;
 
     operations.push(
       prisma.asset.upsert({
@@ -71,6 +77,8 @@ export async function saveResults(assets: Asset[], results: ScoredResult[]): Pro
           assetId: asset.id,
           confidence: detection.confidence,
           status: detection.status,
+          riskScore: risk.score,
+          riskLevel: risk.level,
           scannedAt: detection.scannedAt,
           evidence: {
             create: evidence.map((e) => ({
@@ -79,6 +87,16 @@ export async function saveResults(assets: Asset[], results: ScoredResult[]): Pro
               value: e.value,
               message: e.message,
               weight: e.weight,
+            })),
+          },
+          riskFactors: {
+            create: risk.factors.map((f) => ({
+              id: f.id,
+              ruleId: f.ruleId,
+              title: f.title,
+              points: f.points,
+              basis: f.basis,
+              message: f.message,
             })),
           },
         },
@@ -104,10 +122,10 @@ export function getAgents() {
   });
 }
 
-// A single Asset with its Detection and all Evidence, or null if not found.
+// A single Asset with its Detection, all Evidence, and all risk factors, or null.
 export function getAgent(id: string) {
   return prisma.asset.findUnique({
     where: { id },
-    include: { detections: { include: { evidence: true } } },
+    include: { detections: { include: { evidence: true, riskFactors: true } } },
   });
 }

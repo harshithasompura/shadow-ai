@@ -108,6 +108,8 @@ export function detect(asset: Asset): { detection: Detection; evidence: Evidence
     assetId: asset.id,
     confidence: 0, // Scoring layer computes this from the evidence weights.
     status: "PENDING", // Scoring layer finalizes this.
+    riskScore: 0, // Risk layer computes this from the risk factors.
+    riskLevel: "LOW", // Risk layer finalizes this.
     scannedAt: new Date(),
   };
 

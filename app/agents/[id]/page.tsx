@@ -4,11 +4,13 @@
 
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
-import type { Asset, Detection, Evidence } from "@/lib/types";
-import { ConfidenceMeter, SourceTag, StatusPill, TypeLabel } from "../../ui";
+import type { Asset, Detection, Evidence, RiskFactor } from "@/lib/types";
+import { ConfidenceMeter, RiskPill, SourceTag, StatusPill, TypeLabel } from "../../ui";
 
-// Detail endpoint nests Evidence under each Detection.
-type Agent = Asset & { detections: (Detection & { evidence: Evidence[] })[] };
+// Detail endpoint nests Evidence and RiskFactors under each Detection.
+type Agent = Asset & {
+  detections: (Detection & { evidence: Evidence[]; riskFactors: RiskFactor[] })[];
+};
 
 export default function AgentDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -33,6 +35,7 @@ export default function AgentDetail({ params }: { params: Promise<{ id: string }
       <div className="mt-5 flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">{agent.name}</h1>
         {detection && <StatusPill status={detection.status} />}
+        {detection && <RiskPill level={detection.riskLevel} score={detection.riskScore} />}
       </div>
       <div className="mt-2">
         <TypeLabel type={agent.type} />
@@ -84,6 +87,49 @@ export default function AgentDetail({ params }: { params: Promise<{ id: string }
               </li>
             )}
           </ul>
+        </section>
+      )}
+
+      {/* Risk ledger - why should I care. The second ledger beside the evidence. */}
+      {detection && (
+        <section className="mt-8">
+          <p className="eyebrow">Risk factors · why should I care</p>
+          {detection.riskFactors.length === 0 ? (
+            <p className="card mt-3 p-4 text-sm text-[var(--muted)]">
+              No risk factors fired. Score {detection.riskScore}, level {detection.riskLevel}.
+            </p>
+          ) : (
+            (["OBSERVED", "HEURISTIC"] as const).map((basis) => {
+              const group = detection.riskFactors.filter((f) => f.basis === basis);
+              if (group.length === 0) return null;
+              return (
+                <div key={basis} className="mt-3">
+                  <p className="mb-2 text-xs font-medium text-[var(--muted)]">
+                    {basis === "OBSERVED" ? "Observed" : "Heuristic"}
+                    <span className="text-[var(--faint)]">
+                      {basis === "OBSERVED" ? " · directly collected" : " · inferred signal"}
+                    </span>
+                  </p>
+                  <ul className="space-y-2">
+                    {group.map((f) => (
+                      <li key={f.id} className="card flex items-start gap-3 p-4">
+                        <span className="mono mt-0.5 shrink-0 text-sm" style={{ color: "var(--likely)" }}>
+                          +{f.points}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-medium">{f.title}</span>
+                            <span className="tag">{basis === "OBSERVED" ? "OBSERVED" : "HEURISTIC"}</span>
+                          </div>
+                          <p className="mt-1 text-sm text-[var(--muted)]">{f.message}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })
+          )}
         </section>
       )}
 

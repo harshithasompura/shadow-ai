@@ -19,6 +19,24 @@ export function StatusPill({ status }: { status: string }) {
   return <span className={`pill ${b.cls}`}>{b.label}</span>;
 }
 
+// Risk level maps onto the same three-tier palette: HIGH reads as a flag,
+// MEDIUM as caution, LOW as quiet - the same visual grammar as the AI bands.
+const RISK: Record<string, { cls: string; label: string }> = {
+  HIGH: { cls: "pill--likely", label: "High" },
+  MEDIUM: { cls: "pill--possible", label: "Medium" },
+  LOW: { cls: "pill--not", label: "Low" },
+};
+
+export function RiskPill({ level, score }: { level: string; score?: number }) {
+  const r = RISK[level] ?? { cls: "pill--not", label: level };
+  return (
+    <span className={`pill ${r.cls}`}>
+      {r.label}
+      {score !== undefined && <span className="mono ml-1 opacity-70">{score}</span>}
+    </span>
+  );
+}
+
 // The signature element: score as width, band as hue. Explainable at a glance.
 export function ConfidenceMeter({
   confidence,

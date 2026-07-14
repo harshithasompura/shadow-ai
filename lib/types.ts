@@ -21,6 +21,11 @@ export interface Asset {
   serviceAccount?: string | null;
   labels?: Record<string, string> | null;
   environmentVariables?: Record<string, string> | null;
+  // Security posture metadata, used by the RiskEngine. `publicAccess` is observed
+  // from the provider (Cloud Run ingress); `loggingEnabled` is a config stand-in.
+  // null means "not collected", so a rule that fires on `false` stays quiet.
+  publicAccess?: boolean | null;
+  loggingEnabled?: boolean | null;
   source: Source;
   lastSeen: Date;
 }
@@ -30,7 +35,25 @@ export interface Detection {
   assetId: string;
   confidence: number;
   status: string;
+  // Risk axis, orthogonal to the AI-confidence axis. Set by the RiskEngine.
+  riskScore: number;
+  riskLevel: string;
   scannedAt: Date;
+}
+
+// One contributing reason to an asset's risk score. The risk-side analogue of
+// Evidence. `basis` records whether the signal was directly observed from
+// metadata or produced by a documented heuristic.
+export type RiskBasis = "OBSERVED" | "HEURISTIC";
+
+export interface RiskFactor {
+  id: string;
+  detectionId: string;
+  ruleId: string;
+  title: string;
+  points: number;
+  basis: RiskBasis;
+  message: string;
 }
 
 export interface Evidence {

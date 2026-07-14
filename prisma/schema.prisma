@@ -34,6 +34,8 @@ model Asset {
   serviceAccount       String?
   labels               Json?
   environmentVariables Json?
+  publicAccess         Boolean?
+  loggingEnabled       Boolean?
   source               Source
   lastSeen             DateTime
 
@@ -45,10 +47,25 @@ model Detection {
   assetId    String
   confidence Float
   status     String
+  riskScore  Float    @default(0)
+  riskLevel  String   @default("LOW")
   scannedAt  DateTime @default(now())
 
-  asset    Asset      @relation(fields: [assetId], references: [id], onDelete: Cascade)
-  evidence Evidence[]
+  asset       Asset        @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  evidence    Evidence[]
+  riskFactors RiskFactor[]
+}
+
+model RiskFactor {
+  id            String @id @default(cuid())
+  detectionId   String
+  ruleId        String
+  title         String
+  points        Float
+  basis         String
+  message       String
+
+  detection Detection @relation(fields: [detectionId], references: [id], onDelete: Cascade)
 }
 
 model Evidence {

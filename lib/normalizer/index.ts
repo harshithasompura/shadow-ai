@@ -27,6 +27,7 @@ function normalizeOne(resource: RawResource, lastSeen: Date): Asset {
         name: string;
         serviceAccount?: string;
         labels?: Record<string, string>;
+        ingress?: string;
         template?: { containers?: { image?: string; env?: { name: string; value: string }[] }[] };
       };
       const container = d.template?.containers?.[0];
@@ -39,14 +40,23 @@ function normalizeOne(resource: RawResource, lastSeen: Date): Asset {
         serviceAccount: d.serviceAccount ?? null,
         labels: d.labels ?? null,
         environmentVariables: env(container?.env),
+        // Observed from the real ingress field. Unknown ingress -> not public.
+        // Logging status is not collected live, so it stays null (rule won't fire).
+        publicAccess: d.ingress ? d.ingress === "INGRESS_TRAFFIC_ALL" : null,
+        loggingEnabled: null,
       };
     }
     case "CLOUD_FUNCTION": {
       const d = data as {
         name: string;
         buildConfig?: { runtime?: string };
-        serviceConfig?: { serviceAccountEmail?: string; environmentVariables?: Record<string, string> };
+        serviceConfig?: {
+          serviceAccountEmail?: string;
+          environmentVariables?: Record<string, string>;
+          ingressSettings?: string;
+        };
         labels?: Record<string, string>;
+        loggingEnabled?: boolean;
       };
       return {
         ...base,
@@ -57,6 +67,10 @@ function normalizeOne(resource: RawResource, lastSeen: Date): Asset {
         serviceAccount: d.serviceConfig?.serviceAccountEmail ?? null,
         labels: d.labels ?? null,
         environmentVariables: d.serviceConfig?.environmentVariables ?? null,
+        publicAccess: d.serviceConfig?.ingressSettings
+          ? d.serviceConfig.ingressSettings === "ALLOW_ALL"
+          : null,
+        loggingEnabled: d.loggingEnabled ?? null,
       };
     }
     case "GKE": {
@@ -65,6 +79,8 @@ function normalizeOne(resource: RawResource, lastSeen: Date): Asset {
         location: string;
         resourceLabels?: Record<string, string>;
         nodeConfig?: { serviceAccount?: string };
+        publicAccess?: boolean;
+        loggingEnabled?: boolean;
       };
       return {
         ...base,
@@ -75,6 +91,8 @@ function normalizeOne(resource: RawResource, lastSeen: Date): Asset {
         serviceAccount: d.nodeConfig?.serviceAccount ?? null,
         labels: d.resourceLabels ?? null,
         environmentVariables: null,
+        publicAccess: d.publicAccess ?? null,
+        loggingEnabled: d.loggingEnabled ?? null,
       };
     }
     case "VERTEX_AI": {
@@ -83,6 +101,8 @@ function normalizeOne(resource: RawResource, lastSeen: Date): Asset {
         displayName?: string;
         labels?: Record<string, string>;
         deployedModels?: { model?: string; serviceAccount?: string }[];
+        publicAccess?: boolean;
+        loggingEnabled?: boolean;
       };
       const deployed = d.deployedModels?.[0];
       return {
@@ -94,6 +114,8 @@ function normalizeOne(resource: RawResource, lastSeen: Date): Asset {
         serviceAccount: deployed?.serviceAccount ?? null,
         labels: d.labels ?? null,
         environmentVariables: null,
+        publicAccess: d.publicAccess ?? null,
+        loggingEnabled: d.loggingEnabled ?? null,
       };
     }
   }

@@ -18,6 +18,12 @@ with an **explainable confidence score** that shows *why* each one was flagged.
 > Architecture, design decisions, tradeoffs, and how this scales to thousands of
 > projects live in **[`ARCHITECTURE.md`](ARCHITECTURE.md)**.
 
+**Bonus implemented — Risk scoring.** A second, orthogonal axis: alongside "is
+this AI", each asset gets an additive risk score (external-LLM egress, public
+endpoint, broad service account, logging) with every factor labelled *observed*
+or *heuristic*. Rule-based, so the other bonuses slot in as new rules. See
+[`ARCHITECTURE.md` §7](ARCHITECTURE.md#7-risk-scoring-architecture).
+
 ---
 
 ## Screenshots
@@ -27,7 +33,7 @@ discovered live from Cloud Run.
 
 ![Assets inventory](docs/screenshots/01-assets.png)
 
-**Agents** - workloads scored as AI, across the confidence range (100 → 40).
+**Agents** - workloads scored as AI, with both confidence and risk (two axes).
 
 ![Detected agents](docs/screenshots/02-agents.png)
 

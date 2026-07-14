@@ -8,12 +8,16 @@ interface CloudFunction {
   serviceConfig?: {
     serviceAccountEmail?: string;
     environmentVariables?: Record<string, string>;
+    ingressSettings?: string; // ALLOW_ALL when publicly invokable
   };
   labels?: Record<string, string>;
+  loggingEnabled?: boolean;
 }
 
 const FIXTURES: CloudFunction[] = [
   {
+    // High-risk AI workload: calls an external LLM, is publicly invokable, and has
+    // no logging - exercises three risk factors (two observed, one heuristic).
     name: "projects/shadow-ai/locations/us-central1/functions/embed-documents",
     buildConfig: { runtime: "python311" },
     serviceConfig: {
@@ -21,9 +25,12 @@ const FIXTURES: CloudFunction[] = [
       environmentVariables: {
         VECTOR_DB_URL: "https://pinecone.example",
         EMBEDDING_MODEL: "text-embedding-3-large",
+        OPENAI_API_KEY: "sk-***",
       },
+      ingressSettings: "ALLOW_ALL",
     },
     labels: { team: "search", env: "prod" },
+    loggingEnabled: false,
   },
   {
     name: "projects/shadow-ai/locations/us-central1/functions/resize-thumbnails",

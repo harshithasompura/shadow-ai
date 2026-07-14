@@ -7,6 +7,7 @@ interface CloudRunService {
   name: string; // projects/{p}/locations/{region}/services/{name}
   serviceAccount?: string;
   labels?: Record<string, string>;
+  ingress?: string; // INGRESS_TRAFFIC_ALL when publicly reachable
   template?: {
     containers?: { image?: string; env?: { name: string; value: string }[] }[];
   };
@@ -38,6 +39,7 @@ export async function discoverCloudRun(): Promise<RawResource[]> {
       name: s.name ?? "",
       serviceAccount: s.template?.serviceAccount ?? undefined,
       labels: s.labels ?? undefined,
+      ingress: s.ingress != null ? String(s.ingress) : undefined,
       template: {
         containers: s.template?.containers?.map((c) => ({
           image: c.image ?? undefined,

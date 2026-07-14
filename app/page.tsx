@@ -5,7 +5,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import type { Asset, Detection } from "@/lib/types";
-import { ConfidenceMeter, SourceTag, StatusPill, TypeLabel } from "./ui";
+import { ConfidenceMeter, RiskPill, SourceTag, StatusPill, TypeLabel } from "./ui";
 
 // Both endpoints return each Asset with its Detection(s) included.
 type Agent = Asset & { detections: Detection[] };
@@ -114,7 +114,7 @@ export default function Home() {
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <Head cols={["Name", "Status", "Confidence", "Runtime"]} />
+              <Head cols={["Name", "Status", "Confidence", "Risk", "Runtime"]} />
             </thead>
             <tbody>
               {agents.map((a) => {
@@ -128,13 +128,14 @@ export default function Home() {
                     </Td>
                     <Td>{d ? <StatusPill status={d.status} /> : "-"}</Td>
                     <Td>{d ? <ConfidenceMeter confidence={d.confidence} status={d.status} /> : "-"}</Td>
+                    <Td>{d ? <RiskPill level={d.riskLevel} score={d.riskScore} /> : "-"}</Td>
                     <Td>
                       <span className="mono text-xs text-[var(--muted)]">{a.runtime ?? "-"}</span>
                     </Td>
                   </tr>
                 );
               })}
-              {agents.length === 0 && <Empty span={4} />}
+              {agents.length === 0 && <Empty span={5} />}
             </tbody>
           </table>
         )}

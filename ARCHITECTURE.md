@@ -212,3 +212,103 @@ The layering means these are contained changes: the queue and Cloud Asset
 Inventory live behind the Discovery boundary, incremental writes live behind the
 Persistence boundary, and Detection/Scoring - the parts that encode the product's
 judgement - do not change at all.
+
+---
+
+## 7. Risk scoring architecture
+
+Detecting *that* a workload is an AI agent is only half of a governance answer.
+The other half is *how much to worry about it*. Risk scoring adds a second,
+orthogonal axis to the pipeline: Detection answers "is this AI", the RiskEngine
+answers "why should I care".
+
+### Goals
+
+- Reuse the product's core idea - an additive, fully explainable score - for a
+  second dimension, so a reviewer can see and challenge every point of risk just
+  like every point of AI confidence.
+- Stay inside the existing boundaries: no new I/O in the hot path, no coupling
+  between the two axes.
+- Be honest about signal quality: every factor declares whether it was directly
+  observed or inferred by a documented heuristic.
+
+### Data flow
+
+Risk is computed in the same scan pass, right after scoring, and persisted
+alongside the Detection:
+
+```
+Discovery ──▶ Normalizer ──▶ Detection ──▶ Evidence ──┐
+                                                       ├─▶ Scoring   ─▶ confidence + status
+                                                       └─▶ RiskEngine ─▶ risk score + level + factors
+```
+
+The RiskEngine consumes **Evidence and asset metadata, never the Detection
+outcome**. That keeps it reusable: a public Cloud SQL instance or an
+over-privileged Cloud Storage bucket has risk even though it is not an AI agent,
+and the same engine would score it without change.
+
+### RiskEngine
+
+The engine is generic over a list of `RiskRule`. It is not written around the
+four factors below - it evaluates whatever rules it is given:
+
+```
+RiskEngine
+   │  for each RiskRule: does it apply to (asset, evidence)?
+   ▼
+RiskFactor[]           { ruleId, title, points, basis, message }
+   ▼
+risk score  = min(100, Σ points)
+risk level  = HIGH ≥ 50 · MEDIUM ≥ 20 · LOW < 20
+```
+
+Each rule declares an `id`, `title`, `points`, a `basis`
+(`OBSERVED` | `HEURISTIC`), a human-readable `message`, and an
+`applies(asset, evidence)` predicate. Adding a signal is adding a rule - the
+engine, the scoring math, the persistence schema, and the UI do not change.
+
+### Scoring rules (current set)
+
+| Rule | Points | Signal | Basis |
+| ---- | -----: | ------ | ----- |
+| External LLM egress | 30 | an external-provider API key in Evidence (`OPENAI_/ANTHROPIC_…`, not in-project Vertex) | **OBSERVED** |
+| Public endpoint | 20 | ingress allows all traffic (Cloud Run `ingress`, function `ingressSettings`) | **OBSERVED** |
+| Broad service account | 20 | runs as the default compute SA or an admin/owner/editor identity | **HEURISTIC** |
+| Logging disabled | 10 | no logging configured on the workload | **HEURISTIC** |
+
+**Observed vs heuristic.** Some risk factors cannot be directly observed without
+querying additional Google Cloud APIs - IAM policy analysis for real privilege,
+Cloud Logging for real audit coverage. In this proof-of-concept those are
+implemented as documented heuristics to demonstrate the scoring framework while
+keeping the discovery pipeline lightweight. Every factor records its `basis`, and
+the dashboard groups factors under "Observed" and "Heuristic" so the distinction
+is never hidden from a reviewer.
+
+Maximum score in the current rule set is 80; the framework accepts additional
+weighted factors, so the cap is 100.
+
+### Current limitations
+
+- Privilege is inferred from the service account identity, not resolved from IAM
+  bindings. A narrowly-scoped custom SA with a misleading name would be missed;
+  the default compute SA is flagged even if its bindings were tightened.
+- "Logging disabled" reflects a deployment-config stand-in, not a live read of the
+  Cloud Logging sinks.
+- Risk is recomputed and replaced each scan (no history), the same tradeoff the
+  AI axis makes.
+
+### Future extensions
+
+Because the engine is rule-based, the remaining bonus challenges land as new
+rules or new evidence sources without an architectural change:
+
+- **Cloud Logging integration** - a runtime rule: observed Vertex
+  `GenerateContent` calls in audit logs become an `OBSERVED` factor, raising both
+  AI recall and risk.
+- **Relationship graph** - a shared-secret or external-egress edge becomes a
+  derived factor once resource relationships are collected.
+- **Container image analysis** - AI libraries found in an image add `OBSERVED`
+  detection evidence, which the external-LLM rule already keys off.
+- **Incremental scanning** - a `Scan` aggregate with per-resource etags lets both
+  axes re-score only what changed.

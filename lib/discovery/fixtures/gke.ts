@@ -12,10 +12,12 @@ interface GkeCluster {
 
 const FIXTURES: GkeCluster[] = [
   {
+    // Runs its nodes as the default compute service account - broadly privileged,
+    // which the risk engine flags as a heuristic factor.
     name: "llm-inference",
     location: "us-central1",
     resourceLabels: { team: "ml-platform", env: "prod", workload: "vllm" },
-    nodeConfig: { serviceAccount: "gke-inference@shadow-ai.iam.gserviceaccount.com" },
+    nodeConfig: { serviceAccount: "507476480861-compute@developer.gserviceaccount.com" },
   },
   {
     name: "internal-tools",
