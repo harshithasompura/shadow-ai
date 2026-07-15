@@ -38,6 +38,22 @@ same Evidence model as static signals, so a workload that hides its key in Secre
 Manager - invisible to static config - is still caught when Cloud Logging shows it
 calling Vertex, or when its image bundles `langchain`.
 
+The demo data exercises every evidence type - `ENV_VAR`, `MODEL`, `FRAMEWORK`,
+`LABEL`, `RUNTIME`, `LIBRARY` - and all three bands (`AI_LIKELY`, `POSSIBLE_AI`,
+`NOT_AI`).
+
+**Verify incremental scanning** - a second scan re-processes nothing:
+
+```bash
+curl -X POST http://localhost:3000/api/scan
+# { "assetsDiscovered": 8, "assetsScanned": 8, "skippedUnchanged": 0, "agentsDetected": 6 }
+curl -X POST http://localhost:3000/api/scan
+# { "assetsDiscovered": 8, "assetsScanned": 0, "skippedUnchanged": 8, "agentsDetected": 0 }
+```
+
+Change one resource and only that one is re-scanned (`assetsScanned: 1`,
+`skippedUnchanged: 7`).
+
 ---
 
 ## Screenshots
@@ -85,7 +101,7 @@ Open the dashboard and click **Run scan**, or trigger it from the API:
 
 ```bash
 curl -X POST http://localhost:3000/api/scan
-# { "assetsDiscovered": 8, "agentsDetected": 4 }
+# { "assetsDiscovered": 8, "assetsScanned": 8, "skippedUnchanged": 0, "agentsDetected": 6 }
 ```
 
 ### Environment variables
@@ -168,6 +184,8 @@ Next.js (App Router) · TypeScript · Prisma · Neon Postgres ·
 ## Scope
 
 A prototype that prioritizes architectural clarity over exhaustive cloud
-coverage. Out of scope by design: authentication, background jobs, Cloud Logging
-integration, and production error handling.
-[`ARCHITECTURE.md`](ARCHITECTURE.md) covers what production would add.
+coverage. Out of scope by design: authentication, background jobs, and production
+error handling. The bonus integrations (Cloud Logging, image analysis) are
+implemented against fixtures rather than live APIs - see the bonus table above and
+[`ARCHITECTURE.md` §8](ARCHITECTURE.md#8-bonus-challenges-scope-and-honesty) for
+exactly where each stops and what production would add.

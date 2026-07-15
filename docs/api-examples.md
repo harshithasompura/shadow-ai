@@ -12,7 +12,7 @@ Base URL in development: `http://localhost:3000`
 
 | Method | Path | Purpose |
 | ------ | ---- | ------- |
-| `POST` | `/api/scan` | Run a discovery → detection → scoring → risk → persist pass |
+| `POST` | `/api/scan` | Run a discovery → detection → scoring → risk → persist pass (incremental: skips unchanged assets) |
 | `GET`  | `/api/assets` | Every discovered asset, with its detection band and risk level |
 | `GET`  | `/api/agents` | Only assets scored as AI workloads |
 | `GET`  | `/api/agents/{id}` | One asset with its detection, full evidence, and risk factors |
@@ -21,8 +21,8 @@ Base URL in development: `http://localhost:3000`
 
 ## `POST /api/scan`
 
-Triggers the pipeline and returns a summary. Idempotent per asset - a rescan
-updates existing assets in place rather than duplicating them.
+Triggers the pipeline and returns a summary. Incremental (Bonus 5): each asset is
+fingerprinted, and a rescan skips any whose content is unchanged.
 
 ```bash
 curl -X POST http://localhost:3000/api/scan
@@ -31,9 +31,14 @@ curl -X POST http://localhost:3000/api/scan
 ```json
 {
   "assetsDiscovered": 8,
-  "agentsDetected": 4
+  "assetsScanned": 8,
+  "skippedUnchanged": 0,
+  "agentsDetected": 6
 }
 ```
+
+An immediate second scan re-processes nothing (`assetsScanned: 0`,
+`skippedUnchanged: 8`); change one resource and only that one is re-scanned.
 
 ---
 
@@ -63,6 +68,8 @@ curl http://localhost:3000/api/assets
     "environmentVariables": null,
     "publicAccess": true,
     "loggingEnabled": null,
+    "runtimeCalls": null,
+    "packages": null,
     "source": "REAL",
     "lastSeen": "2026-07-14T12:18:42.624Z",
     "detections": [
@@ -87,7 +94,7 @@ curl http://localhost:3000/api/assets
 ## `GET /api/agents`
 
 Only assets whose detection is an AI workload (`AI_LIKELY` or `POSSIBLE_AI`). The
-four span both axes: confidence 100/80/80/40, and risk from `HIGH` down to `LOW`.
+six span both axes: confidence from 100 down to 40, and risk from `HIGH` to `LOW`.
 
 ```bash
 curl http://localhost:3000/api/agents
@@ -129,8 +136,10 @@ curl http://localhost:3000/api/agents
 ]
 ```
 
-*(4 agents total; two shown, trimmed to the scored fields. `rag-chat-endpoint`
-is 80 confidence / LOW risk, `support-router` is 40 confidence / LOW risk.)*
+*(6 agents total; two shown, trimmed to the scored fields. The rest:
+`rag-chat-endpoint` 100 (MODEL + FRAMEWORK), `internal-tools` 90 (runtime call),
+`resize-thumbnails` 80 (image library), `support-router` 40 (a lone label) - all
+LOW risk.)*
 
 ---
 
@@ -210,6 +219,45 @@ curl http://localhost:3000/api/agents/cloud-function:embed-documents
 
 *(Evidence trimmed to one of three entries for brevity; the full response lists
 all `ENV_VAR` indicators.)*
+
+### Evidence from the bonus detection sources
+
+Beyond static config, two sources emit the same `Evidence` shape. `internal-tools`
+carries no AI metadata yet is detected because Cloud Logging shows a runtime call
+(`RUNTIME`); `resize-thumbnails` is detected because its image bundles an AI
+library (`LIBRARY`). Trimmed to the relevant fields:
+
+```json
+// GET /api/agents/gke:internal-tools
+{
+  "name": "internal-tools",
+  "runtimeCalls": ["Vertex AI GenerateContent"],
+  "detections": [{
+    "confidence": 90, "status": "AI_LIKELY",
+    "evidence": [{
+      "indicatorType": "RUNTIME",
+      "value": "Vertex AI GenerateContent",
+      "message": "Observed runtime AI call \"Vertex AI GenerateContent\" in Cloud Logging.",
+      "weight": 0.9
+    }]
+  }]
+}
+
+// GET /api/agents/cloud-function:resize-thumbnails
+{
+  "name": "resize-thumbnails",
+  "packages": ["sharp", "langchain", "@google-cloud/storage"],
+  "detections": [{
+    "confidence": 80, "status": "AI_LIKELY",
+    "evidence": [{
+      "indicatorType": "LIBRARY",
+      "value": "langchain",
+      "message": "Container image bundles the AI library \"langchain\".",
+      "weight": 0.8
+    }]
+  }]
+}
+```
 
 ### Not found
 

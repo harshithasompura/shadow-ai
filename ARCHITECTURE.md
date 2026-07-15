@@ -97,10 +97,15 @@ Detection emits weighted indicators; scoring sums them:
 
 | Indicator | Weight | Example |
 | --------- | -----: | ------- |
+| `RUNTIME` | 0.9 | an observed Vertex `GenerateContent` call in Cloud Logging (Bonus 1) |
 | `ENV_VAR` | 0.9 | `OPENAI_API_KEY`, `VECTOR_DB_URL` (a provider key is a strong signal) |
 | `MODEL`   | 0.8 | a served model / inference runtime - `gemini`, `vllm`, `text-embedding` |
+| `LIBRARY` | 0.8 | an AI library in the container image - `langchain` (Bonus 4) |
 | `FRAMEWORK`| 0.7 | an agent framework - LangChain, LangGraph, CrewAI |
 | `LABEL`   | 0.4 | a self-declared `ai=true` label (weak - anyone can set it) |
+
+`RUNTIME` and `LIBRARY` come from the bonus detection sources (§8); the rest are
+static config. All flow through the same additive score.
 
 `confidence = min(100, round(Σ weights × 100))`, then:
 

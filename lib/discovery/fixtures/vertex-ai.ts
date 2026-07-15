@@ -13,7 +13,7 @@ const FIXTURES: VertexEndpoint[] = [
   {
     name: "projects/shadow-ai/locations/us-central1/endpoints/8123456789",
     displayName: "rag-chat-endpoint",
-    labels: { team: "ml-platform", env: "prod" },
+    labels: { team: "ml-platform", env: "prod", framework: "LangGraph" },
     deployedModels: [
       {
         model: "projects/shadow-ai/locations/us-central1/models/gemini-tuned-001",
