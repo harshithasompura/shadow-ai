@@ -2,6 +2,7 @@
 // next stage. No AI logic, no persistence. (README)
 import type { Asset, RawResource } from "@/lib/types";
 import { normalize } from "@/lib/normalizer";
+import { runtimeCallsByWorkload } from "@/lib/logging";
 import { discoverCloudRun } from "./cloud-run";
 import { discoverCloudFunctions } from "./fixtures/cloud-functions";
 import { discoverGke } from "./fixtures/gke";
@@ -13,7 +14,14 @@ export async function discoverRawResources(): Promise<RawResource[]> {
   return [...cloudRun, ...discoverCloudFunctions(), ...discoverGke(), ...discoverVertexAi()];
 }
 
-// Discovery's output to the adjacent layer: normalized Assets.
+// Discovery's output to the adjacent layer: normalized Assets, enriched with
+// runtime AI calls observed in Cloud Logging (matched to a workload by name).
 export async function discoverAssets(): Promise<Asset[]> {
-  return normalize(await discoverRawResources());
+  const assets = normalize(await discoverRawResources());
+  const runtime = runtimeCallsByWorkload();
+  for (const asset of assets) {
+    const calls = runtime.get(asset.name);
+    if (calls) asset.runtimeCalls = calls;
+  }
+  return assets;
 }

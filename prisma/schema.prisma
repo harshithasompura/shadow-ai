@@ -36,6 +36,9 @@ model Asset {
   environmentVariables Json?
   publicAccess         Boolean?
   loggingEnabled       Boolean?
+  runtimeCalls         Json?
+  packages             Json?
+  fingerprint          String? // content hash; lets a rescan skip unchanged assets
   source               Source
   lastSeen             DateTime
 

@@ -18,15 +18,25 @@ with an **explainable confidence score** that shows *why* each one was flagged.
 > Architecture, design decisions, tradeoffs, and how this scales to thousands of
 > projects live in **[`ARCHITECTURE.md`](ARCHITECTURE.md)**.
 
-**Bonuses implemented.**
-- **Risk scoring** - a second, orthogonal axis: alongside "is this AI", each asset
-  gets an additive risk score (external-LLM egress, public endpoint, broad service
-  account, logging) with every factor labelled *observed* or *heuristic*.
-  Rule-based, so the other bonuses slot in as new rules.
-  See [`ARCHITECTURE.md` §7](ARCHITECTURE.md#7-risk-scoring-architecture).
-- **Relationship view** - each agent's detail page shows its dependency chain
-  (service account, external LLM, vector store, served model) so you can read the
-  blast radius. Derived from collected metadata; no extra discovery.
+### Bonus challenges
+
+All five were attempted. Two are full features; three are honest
+prototypes - scoped down on purpose so the effort is real without pretending the
+demo path is production. What each would need to be production-grade is documented
+in [`ARCHITECTURE.md`](ARCHITECTURE.md).
+
+| Bonus | Status | Notes |
+| ----- | ------ | ----- |
+| Risk scoring | **Implemented** | Rule-based second axis; observed vs heuristic factors ([§7](ARCHITECTURE.md#7-risk-scoring-architecture)) |
+| Relationship visualization | **Implemented** | Node-link dependency graph on the detail page (blast radius) |
+| Cloud Logging | **MVP** | Parses Vertex `GenerateContent` audit-log entries into runtime evidence; reads fixtures, not the live sink |
+| Container image analysis | **Prototype** | Detects AI libraries from package metadata; no real image/SBOM pull |
+| Incremental scanning | **Basic** | Per-asset content fingerprint; a rescan skips unchanged assets and reports the count |
+
+The two new detection sources (a runtime call, an image library) flow through the
+same Evidence model as static signals, so a workload that hides its key in Secret
+Manager - invisible to static config - is still caught when Cloud Logging shows it
+calling Vertex, or when its image bundles `langchain`.
 
 ---
 
@@ -41,9 +51,15 @@ discovered live from Cloud Run.
 
 ![Detected agents](docs/screenshots/02-agents.png)
 
-**Agent detail** - the confidence score and the evidence ledger that produced it.
+**Agent detail** - the confidence score, the evidence ledger, the risk factors,
+and the dependency graph.
 
 ![Agent detail](docs/screenshots/03-agent-detail.png)
+
+**Runtime detection** - a workload with no static AI config, caught only because
+Cloud Logging shows it calling Vertex `GenerateContent` (Bonus 1).
+
+![Runtime evidence](docs/screenshots/04-runtime-evidence.png)
 
 ---
 

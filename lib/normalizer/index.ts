@@ -57,6 +57,7 @@ function normalizeOne(resource: RawResource, lastSeen: Date): Asset {
         };
         labels?: Record<string, string>;
         loggingEnabled?: boolean;
+        packages?: string[];
       };
       return {
         ...base,
@@ -71,6 +72,7 @@ function normalizeOne(resource: RawResource, lastSeen: Date): Asset {
           ? d.serviceConfig.ingressSettings === "ALLOW_ALL"
           : null,
         loggingEnabled: d.loggingEnabled ?? null,
+        packages: d.packages ?? null,
       };
     }
     case "GKE": {

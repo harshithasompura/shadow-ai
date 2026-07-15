@@ -10,17 +10,23 @@ import type { Asset, Detection, Evidence } from "@/lib/types";
 
 // Indicator families this layer recognizes. Evidence.indicatorType is a plain
 // string in the domain model; this union just keeps our emitters honest.
-type IndicatorType = "ENV_VAR" | "LABEL" | "FRAMEWORK" | "MODEL";
+type IndicatorType = "ENV_VAR" | "LABEL" | "FRAMEWORK" | "MODEL" | "RUNTIME" | "LIBRARY";
 
 // `weight` is the fixed strength of an indicator - a property of the heuristic,
 // not a confidence score. The Scoring layer aggregates weights into confidence;
 // tuning these numbers is a Detection-layer concern, computing with them is not.
 const WEIGHT: Record<IndicatorType, number> = {
+  RUNTIME: 0.9, // an observed AI API call at runtime is the strongest signal
   ENV_VAR: 0.9, // a provider API key is a strong signal
   MODEL: 0.8, // a named LLM or inference runtime being served is a strong signal
+  LIBRARY: 0.8, // an AI library found in the container image
   FRAMEWORK: 0.7, // an agent framework in the runtime is a strong signal
   LABEL: 0.4, // a self-declared label is weak - anyone can set it
 };
+
+// AI libraries detectable in container image / package metadata. (Bonus 4)
+const AI_LIBRARY =
+  /^(langchain|langgraph|llama.?index|crewai|autogen|haystack|openai|anthropic|cohere|mistralai|transformers|sentence-transformers|vllm|tiktoken|google-generativeai|vertexai)/i;
 
 // Env var *names* that reference an AI provider, SDK, or vector store. Matches
 // the key, never the value (values are secrets and shouldn't be inspected).
@@ -100,6 +106,19 @@ export function detect(asset: Asset): { detection: Detection; evidence: Evidence
     const runtimeModel = matchModel(asset.runtime);
     if (runtimeModel) {
       add("MODEL", asset.runtime, `Runtime "${asset.runtime}" references the "${runtimeModel}" model or inference runtime.`);
+    }
+  }
+
+  // 4. Runtime AI calls observed in Cloud Logging - the strongest signal, since
+  // it is a call that actually happened, not static config. (Bonus 1)
+  for (const call of asset.runtimeCalls ?? []) {
+    add("RUNTIME", call, `Observed runtime AI call "${call}" in Cloud Logging.`);
+  }
+
+  // 5. AI libraries found in the container image / package metadata. (Bonus 4)
+  for (const pkg of asset.packages ?? []) {
+    if (AI_LIBRARY.test(pkg)) {
+      add("LIBRARY", pkg, `Container image bundles the AI library "${pkg}".`);
     }
   }
 

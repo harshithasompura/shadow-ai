@@ -12,6 +12,7 @@ interface CloudFunction {
   };
   labels?: Record<string, string>;
   loggingEnabled?: boolean;
+  packages?: string[]; // AI libraries found in the image (Bonus 4, image analysis)
 }
 
 const FIXTURES: CloudFunction[] = [
@@ -33,6 +34,8 @@ const FIXTURES: CloudFunction[] = [
     loggingEnabled: false,
   },
   {
+    // Static config looks benign, but the image bundles langchain - only image
+    // analysis reveals the hidden AI dependency. (Bonus 4)
     name: "projects/shadow-ai/locations/us-central1/functions/resize-thumbnails",
     buildConfig: { runtime: "nodejs20" },
     serviceConfig: {
@@ -40,6 +43,7 @@ const FIXTURES: CloudFunction[] = [
       environmentVariables: { BUCKET: "shadow-ai-media" },
     },
     labels: { team: "media", env: "prod" },
+    packages: ["sharp", "langchain", "@google-cloud/storage"],
   },
   {
     // Self-declares via an ai=true label but exposes no API key, model, or

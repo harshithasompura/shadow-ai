@@ -26,6 +26,11 @@ export interface Asset {
   // null means "not collected", so a rule that fires on `false` stays quiet.
   publicAccess?: boolean | null;
   loggingEnabled?: boolean | null;
+  // Runtime AI calls observed in Cloud Logging (e.g. Vertex GenerateContent) and
+  // AI libraries found in the container image. Both feed the Detection layer as
+  // additional evidence sources beyond static config. (Bonus 1 & 4)
+  runtimeCalls?: string[] | null;
+  packages?: string[] | null;
   source: Source;
   lastSeen: Date;
 }

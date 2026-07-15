@@ -4,6 +4,7 @@
 // Boundaries (README > Architecture Principles):
 //   - Never discovers, normalizes, detects, or scores.
 //   - Never imports GCP SDKs or Next.js request/response objects.
+import { createHash } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import type { Asset, Detection, Evidence, RiskFactor } from "@/lib/types";
 import { prisma } from "./prisma";
@@ -17,7 +18,25 @@ type ScoredResult = {
 
 // Nullable Json columns store DB NULL when the metadata is absent, so an update
 // clears a value that a prior scan had set. (Plain null isn't valid for Json.)
-const json = (v: Record<string, string> | null | undefined) => v ?? Prisma.DbNull;
+const json = (v: Record<string, string> | string[] | null | undefined) => v ?? Prisma.DbNull;
+
+// Content hash of everything the pipeline reads (all but lastSeen), so a rescan
+// can tell whether an asset actually changed. Field order is fixed for stability.
+// (Bonus 5 - incremental scanning.)
+export function fingerprint(a: Asset): string {
+  const material = JSON.stringify([
+    a.name, a.type, a.region, a.runtime ?? null, a.serviceAccount ?? null,
+    a.labels ?? null, a.environmentVariables ?? null, a.publicAccess ?? null,
+    a.loggingEnabled ?? null, a.runtimeCalls ?? null, a.packages ?? null, a.source,
+  ]);
+  return createHash("sha1").update(material).digest("hex");
+}
+
+// Existing asset fingerprints, so the orchestrator can skip unchanged assets.
+export async function getFingerprints(): Promise<Map<string, string>> {
+  const rows = await prisma.asset.findMany({ select: { id: true, fingerprint: true } });
+  return new Map(rows.filter((r) => r.fingerprint).map((r) => [r.id, r.fingerprint!]));
+}
 
 // Asset columns, shared by upsert create/update. `type`/`source` are enums whose
 // string literals match the Prisma-generated types.
@@ -32,6 +51,9 @@ function assetData(a: Asset) {
     environmentVariables: json(a.environmentVariables),
     publicAccess: a.publicAccess ?? null,
     loggingEnabled: a.loggingEnabled ?? null,
+    runtimeCalls: json(a.runtimeCalls),
+    packages: json(a.packages),
+    fingerprint: fingerprint(a),
     source: a.source,
     lastSeen: a.lastSeen,
   };

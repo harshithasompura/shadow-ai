@@ -315,3 +315,72 @@ rules or new evidence sources without an architectural change:
   detection evidence, which the external-LLM rule already keys off.
 - **Incremental scanning** - a `Scan` aggregate with per-resource etags lets both
   axes re-score only what changed.
+
+---
+
+## 8. Bonus challenges: scope and honesty
+
+All five bonuses were attempted. Two are full features (risk scoring §7,
+relationship visualization); three are deliberately scoped-down prototypes. They
+are real implementations - working code on the live pipeline - but their data
+path is a fixture stand-in, not a production integration. Scoping them down was a
+choice: a sincere, honest slice of each beats one polished bonus and two ignored.
+
+The unifying design decision is that both new detection sources emit the **same
+`Evidence`** as static signals. A runtime call and an image library are just two
+more indicator types (`RUNTIME`, `LIBRARY`) with their own weights, so scoring,
+risk, persistence, and the UI absorb them with no change. That is the same
+leverage the layered pipeline was built for.
+
+### Cloud Logging integration - MVP
+
+- **Built:** `lib/logging` parses Cloud Audit Log entries, filters
+  `protoPayload.methodName` for Vertex generative methods
+  (`GenerateContent`/`Predict`), and emits a `RUNTIME` evidence indicator
+  (weight 0.9 - an observed call is the strongest signal). This catches the
+  static blind spot: `internal-tools` carries no AI config yet is flagged because
+  the logs show it calling Vertex.
+- **Why MVP:** it reads representative fixture entries, not the live sink.
+- **Production:** stream from a Cloud Logging sink (or `entries.list`) with a
+  method-name filter, match entries to assets by resource/principal, and dedupe
+  over a time window. The parser above does not change.
+
+### Container image analysis - prototype
+
+- **Built:** detection matches an asset's `packages` list against known AI
+  libraries and emits a `LIBRARY` indicator (weight 0.8). `resize-thumbnails`
+  looks like a media function but its image bundles `langchain`, so it is caught.
+- **Why prototype:** `packages` is image metadata supplied by the fixture; no
+  image is pulled.
+- **Production:** resolve the image digest, pull it (or read a generated SBOM via
+  syft/trivy), and enumerate installed packages per layer. The matcher is reused
+  unchanged.
+
+### Incremental scanning - basic
+
+- **Built:** persistence stores a SHA-1 `fingerprint` of everything the pipeline
+  reads (all fields but `lastSeen`). A scan loads existing fingerprints, skips
+  assets whose hash is unchanged, and reports `skippedUnchanged`. A first scan
+  processes all; an immediate rescan skips all.
+- **Why basic:** skipped assets keep their prior detection and their `lastSeen`
+  is not bumped; there is no scan history to diff.
+- **Production:** a `Scan` aggregate plus provider `etag`/`updateTime` so change
+  detection uses the provider's own version marker instead of a content hash,
+  writing only deltas.
+
+### What I would improve with more time
+
+- Resolve real IAM bindings and Secret Manager references (turns two heuristic
+  risk factors and the graph's inferred edges into observed ones).
+- Live Cloud Logging and image/SBOM reads, replacing the two fixture stand-ins.
+- A calibrated, saturating score for both axes instead of a flat sum, keeping the
+  per-indicator explanation.
+- A `Scan` aggregate with history, enabling diffs and true incremental writes.
+
+### Why the RiskEngine is a separate layer
+
+Risk is a second axis, not more detection. Keeping it a pure function of
+`(Asset, Evidence)` - never of the Detection outcome - means it scores any asset,
+AI or not, and evolves as a rule list without touching detection or scoring
+(§7). Folding risk into detection would have coupled two questions that are
+better answered independently: *is this AI* and *why should I care*.
