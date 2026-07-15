@@ -15,40 +15,25 @@ this in production across thousands of projects.
 The system is a **linear pipeline**: each layer has exactly one responsibility
 and talks only to the adjacent layer.
 
-```
-                   Google Cloud Project
-                           │
-                  Service Account Auth
-                           │
-                           ▼
-                 Discovery Layer
-          ┌──────────┬──────────┬──────────┬──────────┐
-      Cloud Run   Functions    GKE     Vertex AI
-       (live)     (fixture)  (fixture) (fixture)
-          │
-          ▼
-             Raw Cloud Resources
-                     │
-                     ▼
-             Resource Normalizer
-                     │
-                     ▼
-              Normalized Assets
-                     │
-                     ▼
-             Detection Engine  ──▶  Evidence
-         (static heuristics)
-                     │
-                     ▼
-             Confidence Scoring
-          (weights → 0–100 → status)
-                     │
-                     ▼
-                Persistence  (Neon Postgres / Prisma)
-                     │
-          ┌──────────┴──────────┐
-          ▼                     ▼
-      REST API             Dashboard
+```mermaid
+flowchart TD
+    GCP["Google Cloud Project"] --> AUTH["Service account auth"]
+    AUTH --> DISCOVERY
+
+    subgraph DISCOVERY["Discovery layer"]
+        direction LR
+        RUN["Cloud Run<br>(live)"]
+        FN["Cloud Functions<br>(fixture)"]
+        GKE["GKE<br>(fixture)"]
+        VX["Vertex AI<br>(fixture)"]
+    end
+
+    DISCOVERY -->|"raw cloud resources"| NORM["Resource Normalizer"]
+    NORM -->|"normalized Assets"| DET["Detection Engine<br>(static heuristics)"]
+    DET -->|"Evidence"| SCORE["Confidence Scoring<br>(weights → 0–100 → status)"]
+    SCORE --> DB[("Persistence<br>Neon Postgres / Prisma")]
+    DB --> API["REST API"]
+    DB --> DASH["Dashboard"]
 ```
 
 ### Layer responsibilities and boundaries
@@ -83,8 +68,33 @@ Discovered infrastructure is modelled independently from AI analysis.
 - **Evidence** - one machine-readable indicator plus its human-readable reason
   and `weight`; the explanation behind a score.
 
-```
-Asset 1 ──── * Detection 1 ──── * Evidence
+```mermaid
+erDiagram
+    Asset ||--o{ Detection : "is analysed into"
+    Detection ||--o{ Evidence : "is explained by"
+
+    Asset {
+        string name
+        string type
+        string region
+        string runtime
+        string serviceAccount
+        json labels
+        json envVarNames "names only, never values"
+        enum source "REAL | FIXTURE"
+        datetime lastSeen
+    }
+    Detection {
+        int confidence "0-100"
+        enum status "AI_LIKELY | POSSIBLE_AI | NOT_AI"
+        datetime scannedAt
+    }
+    Evidence {
+        enum indicatorType
+        string value
+        string message
+        float weight
+    }
 ```
 
 `source` is provenance: `REAL` only when GCP actually returned the data,
@@ -242,10 +252,12 @@ answers "why should I care".
 Risk is computed in the same scan pass, right after scoring, and persisted
 alongside the Detection:
 
-```
-Discovery ──▶ Normalizer ──▶ Detection ──▶ Evidence ──┐
-                                                       ├─▶ Scoring   ─▶ confidence + status
-                                                       └─▶ RiskEngine ─▶ risk score + level + factors
+```mermaid
+flowchart LR
+    DISC["Discovery"] --> NORM["Normalizer"] --> DET["Detection"] --> EV["Evidence"]
+    EV --> SCORE["Scoring"] --> OUT1["confidence + status"]
+    EV --> RISK["RiskEngine"] --> OUT2["risk score + level + factors"]
+    META["Asset metadata"] --> RISK
 ```
 
 The RiskEngine consumes **Evidence and asset metadata, never the Detection
@@ -258,14 +270,15 @@ and the same engine would score it without change.
 The engine is generic over a list of `RiskRule`. It is not written around the
 four factors below - it evaluates whatever rules it is given:
 
-```
-RiskEngine
-   │  for each RiskRule: does it apply to (asset, evidence)?
-   ▼
-RiskFactor[]           { ruleId, title, points, basis, message }
-   ▼
-risk score  = min(100, Σ points)
-risk level  = HIGH ≥ 50 · MEDIUM ≥ 20 · LOW < 20
+```mermaid
+flowchart TD
+    IN["(asset, evidence)"] --> ENGINE["RiskEngine<br>for each RiskRule: does it apply?"]
+    ENGINE --> FACTORS["RiskFactor[]<br>{ ruleId, title, points, basis, message }"]
+    FACTORS --> SCORE["risk score = min(100, Σ points)"]
+    SCORE --> LEVEL{"risk level"}
+    LEVEL -->|"≥ 50"| HIGH["HIGH"]
+    LEVEL -->|"≥ 20"| MEDIUM["MEDIUM"]
+    LEVEL -->|"< 20"| LOW["LOW"]
 ```
 
 Each rule declares an `id`, `title`, `points`, a `basis`

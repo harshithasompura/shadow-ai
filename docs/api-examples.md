@@ -24,6 +24,25 @@ Base URL in development: `http://localhost:3000`
 Triggers the pipeline and returns a summary. Incremental (Bonus 5): each asset is
 fingerprinted, and a rescan skips any whose content is unchanged.
 
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API as POST /api/scan
+    participant Disc as Discovery
+    participant Pipe as Detect · Score · Risk
+    participant DB as Postgres
+
+    Client->>API: POST /api/scan
+    API->>Disc: collect resources (live Cloud Run + fixtures)
+    Disc-->>API: normalized Assets
+    API->>DB: load stored fingerprints
+    Note over API: skip assets whose fingerprint is unchanged
+    API->>Pipe: changed assets only
+    Pipe-->>API: Detection + Evidence + RiskFactors
+    API->>DB: upsert results
+    API-->>Client: scan summary (discovered, scanned, skipped, agents)
+```
+
 ```bash
 curl -X POST http://localhost:3000/api/scan
 ```

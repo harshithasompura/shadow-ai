@@ -15,6 +15,19 @@ with an **explainable confidence score** that shows *why* each one was flagged.
   `NOT_AI` band, and the evidence behind every point.
 - **Surfaces** - a REST API and a lightweight dashboard.
 
+```mermaid
+flowchart LR
+    GCP["GCP project"] --> D["Discovery<br>Cloud Run live + fixtures"]
+    D --> N["Normalizer"]
+    N --> DET["Detection<br>explainable heuristics"]
+    DET --> S["Scoring<br>confidence 0–100 + band"]
+    DET --> R["Risk<br>rule-based factors"]
+    S --> P[("Postgres")]
+    R --> P
+    P --> API["REST API"]
+    P --> UI["Dashboard"]
+```
+
 > Architecture, design decisions, tradeoffs, and how this scales to thousands of
 > projects live in **[`ARCHITECTURE.md`](ARCHITECTURE.md)**.
 
@@ -144,8 +157,14 @@ The score is always just the sum of the reasons shown beside it.
 | `FRAMEWORK` | 0.7 | LangChain, LangGraph, CrewAI |
 | `LABEL`   | 0.4 | a self-declared `ai=true` label |
 
-`confidence = min(100, round(Σ weights × 100))` → `≥70 AI_LIKELY`,
-`≥40 POSSIBLE_AI`, `<40 NOT_AI`.
+```mermaid
+flowchart LR
+    W["Σ evidence weights"] --> C["confidence =<br>min(100, round(Σ × 100))"]
+    C --> B{"band"}
+    B -->|"≥ 70"| A1["AI_LIKELY"]
+    B -->|"40–69"| A2["POSSIBLE_AI"]
+    B -->|"< 40"| A3["NOT_AI"]
+```
 
 A workload with two provider keys reaches 100; one that only self-declares with a
 label reaches 40; an `xgboost` model fires nothing and stays `NOT_AI` - classic
